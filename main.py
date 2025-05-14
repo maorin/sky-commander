@@ -57,12 +57,12 @@ except FileNotFoundError:
 
 # Scale images if needed
 player_img = pygame.transform.scale(player_img, (64, 64))
-enemy_img = pygame.transform.scale(enemy_img, (30, 20))
+enemy_img = pygame.transform.scale(enemy_img, (60, 40))
 bullet_img = pygame.transform.scale(bullet_img, (5, 10))
 background_img = pygame.transform.scale(background_img, (screen_width, screen_height))
 
 # Rotate images for horizontal orientation
-enemy_img = pygame.transform.rotate(enemy_img, 90)
+# enemy_img = pygame.transform.rotate(enemy_img, 90)
 
 
 # Player class
