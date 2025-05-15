@@ -74,6 +74,9 @@ class Player(pygame.sprite.Sprite):
         self.rect.centery = screen_height // 2
         self.rect.left = 10
         self.speedy = 0
+        self.lives = 3  # 玩家初始有3条生命
+        self.invincible = False  # 是否无敌（被撞后短暂无敌）
+        self.invincible_timer = 0  # 无敌时间计时器
 
     def update(self):
         self.speedy = 0
@@ -87,6 +90,12 @@ class Player(pygame.sprite.Sprite):
             self.rect.bottom = screen_height
         if self.rect.top < 0:
             self.rect.top = 0
+            
+        # 处理无敌状态
+        if self.invincible:
+            self.invincible_timer -= 1
+            if self.invincible_timer <= 0:
+                self.invincible = False
 
     def shoot(self):
         bullet = Bullet(self.rect.right, self.rect.centery)
@@ -195,15 +204,41 @@ def game_loop():
             all_sprites.add(enemy)
             enemies.add(enemy)
 
-        hits = pygame.sprite.spritecollide(player, enemies, False)
-        if hits:
-            running = False  # Game over on collision
+        # 检查玩家与敌机的碰撞
+        if not player.invincible:  # 只有在非无敌状态下才检测碰撞
+            hits = pygame.sprite.spritecollide(player, enemies, False)
+            if hits:
+                player.lives -= 1  # 减少一条生命
+                
+                # 如果生命值为0，游戏结束
+                if player.lives <= 0:
+                    running = False  # Game over
+                else:
+                    # 否则，让玩家短暂无敌
+                    player.invincible = True
+                    player.invincible_timer = 120  # 2秒无敌(60帧/秒 * 2秒)
+                    
+                    # 移除碰撞的敌机
+                    for enemy in hits:
+                        enemy.kill()
+                        new_enemy = Enemy()
+                        all_sprites.add(new_enemy)
+                        enemies.add(new_enemy)
 
         # Draw / render
         screen.fill(black)
         screen.blit(background_img, (0, 0))
         draw_score(screen, score)
-        all_sprites.draw(screen)
+        draw_lives(screen, player.lives)  # 绘制生命值
+        
+        # 无敌状态下闪烁显示玩家
+        if player.invincible and pygame.time.get_ticks() % 200 < 100:
+            # 如果在无敌状态且时间为偶数帧，不绘制玩家
+            temp_sprites = pygame.sprite.Group([sprite for sprite in all_sprites if sprite != player])
+            temp_sprites.draw(screen)
+        else:
+            all_sprites.draw(screen)
+            
         pygame.display.flip()
 
 def draw_score(surf, score):
@@ -211,6 +246,28 @@ def draw_score(surf, score):
     text = font.render("Score: " + str(score), True, white)
     text_rect = text.get_rect()
     surf.blit(text, text_rect)
+
+def draw_lives(surf, lives):
+    # 绘制生命值（红心）
+    heart_width = 30
+    heart_height = 30
+    heart_spacing = 10
+    for i in range(lives):
+        # 创建一个红色的心形图像
+        heart = pygame.Surface((heart_width, heart_height))
+        heart.fill((0, 0, 0))  # 透明背景
+        heart.set_colorkey((0, 0, 0))
+        pygame.draw.polygon(heart, red, [(heart_width//2, heart_height//5), 
+                                        (heart_width//5, heart_height//2), 
+                                        (heart_width//2, heart_height-heart_height//5), 
+                                        (heart_width-heart_width//5, heart_height//2)])
+        pygame.draw.circle(heart, red, (heart_width//3, heart_height//3), heart_width//4)
+        pygame.draw.circle(heart, red, (heart_width-heart_width//3, heart_height//3), heart_width//4)
+        
+        # 在屏幕右上角显示
+        x = screen_width - (i + 1) * (heart_width + heart_spacing)
+        y = 10
+        surf.blit(heart, (x, y))
 
 
 def show_game_over():
@@ -238,6 +295,9 @@ def show_game_over():
 
 show_start_menu()
 while True:
+    # 重置游戏状态
+    score = 0  # 重置分数
+    
     all_sprites = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     bullets = pygame.sprite.Group()
